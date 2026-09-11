@@ -1,0 +1,2 @@
+{"user_input":"这个项目使用什么向量数据库？","retrieved_contexts":["项目使用 PostgreSQL 和 pgvector 保存文档向量。"],"response":"项目使用 PostgreSQL 和 pgvector。[S1]","reference":"项目使用 PostgreSQL + pgvector。"}
+
