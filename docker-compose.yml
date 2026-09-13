@@ -1,0 +1,65 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: rag
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag_password}
+      POSTGRES_DB: rag
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag -d rag"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+      # 复用宿主机已下载的模型，避免容器内重新从 Cloudflare R2 下载（国内 DNS 不通）
+      - C:/Users/Lenovo/.ollama/models:/root/.ollama/models:ro
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  app:
+    build: .
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: INFO
+      DATABASE_URL: postgresql+psycopg://rag:${POSTGRES_PASSWORD:-rag_password}@db:5432/rag
+      OLLAMA_BASE_URL: http://ollama:11434
+      HF_ENDPOINT: https://hf-mirror.com
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_BASE_URL: https://api.deepseek.com
+      DEEPSEEK_MODEL: deepseek-chat
+      OLLAMA_EMBED_MODEL: qwen3-embedding:0.6b
+      EMBEDDING_DIMENSION: "1024"
+      RERANK_ENABLED: "true"
+      RERANK_MODEL: BAAI/bge-reranker-v2-m3
+      VLM_ENABLED: "false"
+      OCR_ENABLED: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+      - uploads:/app/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  ollama:
+  hf_cache:
+  uploads:
