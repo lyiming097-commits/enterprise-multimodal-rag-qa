@@ -64,8 +64,8 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Personal RAG Studio API",
-        description="Local API for the six-step RAG demo",
+        title="Enterprise Knowledge Base RAG API",
+        description="API for the six-step enterprise knowledge-base RAG service",
         version="0.2.0",
     )
     application.add_middleware(

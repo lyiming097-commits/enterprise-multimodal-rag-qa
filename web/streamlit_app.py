@@ -21,8 +21,8 @@ from app.ingestion.parsers import ParserFactory  # noqa: E402
 from app.ingestion.storage import save_upload  # noqa: E402
 
 settings = get_settings()
-st.set_page_config(page_title="个人多模态 RAG", page_icon="📚", layout="wide")
-st.title("📚 个人多模态 RAG 知识库")
+st.set_page_config(page_title="企业知识库 RAG", page_icon="📚", layout="wide")
+st.title("📚 企业知识库 RAG")
 
 
 def database_ready() -> tuple[bool, str]:
@@ -64,7 +64,7 @@ with st.sidebar:
     with SessionLocal() as session:
         knowledge_bases = list(session.scalars(select(KnowledgeBase).order_by(KnowledgeBase.name)))
 
-    new_name = st.text_input("新建知识库", placeholder="例如：个人资料")
+    new_name = st.text_input("新建知识库", placeholder="例如：产品知识库")
     if st.button("创建", use_container_width=True, disabled=not new_name.strip()):
         try:
             with SessionLocal() as session:

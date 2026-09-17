@@ -6,7 +6,7 @@ import uvicorn
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="启动本地 Vue + FastAPI RAG Demo")
+    parser = argparse.ArgumentParser(description="启动企业知识库 Vue + FastAPI RAG 服务")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=8000, type=int)
     parser.add_argument("--reload", action="store_true")

@@ -1,3 +1,3 @@
-"""Personal multimodal RAG application."""
+"""Enterprise knowledge-base multimodal RAG application."""
 
 __version__ = "0.2.0"

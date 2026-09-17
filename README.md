@@ -1,8 +1,8 @@
-# RAG Studio：个人多模态知识库 Demo
+# 企业知识库 RAG 问答系统
 
-一个可以在本机运行的 RAG 问答 Demo，支持 PDF、Markdown、TXT 和图片资料。项目使用 Vue 3 可视化界面、FastAPI 后端、DeepSeek 远程生成答案、Ollama 本地运行 Qwen3 Embedding、PostgreSQL + pgvector 保存向量，并通过 BM25、RRF 与 Cross-Encoder Rerank 完成混合检索。
+这是一个面向企业知识库场景的多模态 RAG 问答系统，支持 PDF、Markdown、TXT 和图片资料。项目使用 Vue 3 可视化界面、FastAPI 后端、DeepSeek 远程生成答案、Ollama 本地运行 Qwen3 Embedding、PostgreSQL + pgvector 保存向量，并通过 BM25、RRF 与 Cross-Encoder Rerank 完成混合检索。
 
-本项目不使用 Docker、Redis、消息队列或持久化缓存。文档在 Streamlit 页面中同步解析和索引，适合个人演示与效果实验。
+项目支持本地开发与 Docker 部署。文档在上传后同步解析和索引，Streamlit 页面作为轻量备用入口；当前版本面向企业知识库的单实例演示，不包含用户权限、并发任务和生产监控。
 
 ## 功能
 
@@ -17,6 +17,26 @@
 - 文档名、页码、章节和原文片段引用；
 - Hit@K、MRR、nDCG 检索评测脚本。
 - Vue 页面实时展示 Query 改写、召回路径、RRF/Rerank 分数和有效引用。
+
+## 仓库结构
+
+```text
+app/                 FastAPI 接口、文档解析、检索与生成源码
+frontend/            Vue 前端源码及依赖清单
+scripts/             数据库初始化、启动及评测脚本
+tests/               单元测试与评测示例
+web/                 Streamlit 备用界面
+data/uploads/        上传目录（Git 仅保留 .gitkeep）
+docker/              容器入口脚本
+Dockerfile           应用镜像构建
+docker-compose.yml   数据库、Ollama 与应用服务编排
+.env.example         环境变量示例
+pyproject.toml       Python 依赖与构建配置
+启动RAG.command      macOS 本地启动入口
+项目技术方案.md       架构与技术说明
+```
+
+源码按上述目录维护；根目录不再保留同名源码、前端配置和测试文件的重复副本。
 
 ## 环境要求
 
@@ -100,7 +120,7 @@ RERANK_ENABLED=true
 RERANK_MODEL=BAAI/bge-reranker-v2-m3
 ```
 
-`EMBEDDING_DIMENSION` 必须和 Ollama 实际返回的向量维度一致。更换维度后需要删除并重新创建本 Demo 的数据表。
+`EMBEDDING_DIMENSION` 必须和 Ollama 实际返回的向量维度一致。更换维度后需要删除并重新创建本项目的数据表。
 
 ## 初始化数据库
 
@@ -123,7 +143,7 @@ cd ..
 
 `frontend/dist` 构建产物会由 FastAPI 直接托管，运行时不需要再启动 Node.js 服务。
 
-## 启动 Vue Demo
+## 启动 Vue 服务
 
 ```bash
 python -m scripts.run_app
@@ -140,11 +160,40 @@ python -m scripts.run_app
 
 页面也提供“一键加载测试样本”，可以不准备文件直接验证完整问答链路。
 
-原 Streamlit 页面仍保留为轻量备用入口：
+Streamlit 页面保留为轻量备用入口：
 
 ```bash
 streamlit run web/streamlit_app.py
 ```
+
+## Docker Compose 部署
+
+需要 Docker Engine / Docker Desktop、Compose v2，以及用于预先构建前端的 Node.js 和 npm。
+
+1. 从 `.env.example` 复制 `.env`，填写 `DEEPSEEK_API_KEY` 和 `POSTGRES_PASSWORD`。数据库密码若含 URL 保留字符，需要同步调整 Compose 中的数据库连接 URL。
+2. 检查 `docker-compose.yml` 中 Ollama 的模型挂载。当前文件保留了开发机的 `C:/Users/Lenovo/.ollama/models:/root/.ollama/models:ro`：其他机器应改成自己的模型目录，或删除这一条绑定挂载，保留 `ollama:/root/.ollama` 命名卷并在容器内下载模型。
+3. 在宿主机预先构建前端（Dockerfile 会复制 `frontend/dist`）：
+
+```bash
+cd frontend
+npm ci
+npm run build
+cd ..
+```
+
+4. 启动数据库和 Ollama。若已通过只读目录挂载准备好的模型，可跳过 `pull`；否则执行以下命令下载：
+
+```bash
+docker compose up -d db ollama
+docker compose exec ollama ollama pull qwen3-embedding:0.6b
+docker compose exec ollama ollama list
+docker compose up -d --build app
+docker compose logs -f app
+```
+
+模型必须与 Compose 中的 `OLLAMA_EMBED_MODEL` 一致。入口脚本会初始化数据库并启动 FastAPI，服务地址为 `http://127.0.0.1:8000`。
+
+Compose 使用命名卷保存数据库、上传文件和模型缓存。当前容器配置开启 OCR、关闭 VLM；需要 VLM 时，应先准备视觉模型并调整容器环境变量。不要通过 `docker compose down -v` 停止日常服务，该命令会删除命名卷数据。
 
 ## HTTP API
 
@@ -195,13 +244,13 @@ pytest
 
 算法单元测试不需要连接数据库和模型。完整联调需要 PostgreSQL、Ollama 和 DeepSeek API 均可用。
 
-## 当前 Demo 边界
+## 当前版本边界
 
-- 单用户、单进程、本机运行；
+- 当前默认单用户、单进程，可通过 Docker Compose 部署为独立服务；
 - 文件导入期间页面会等待索引完成；
-- BM25 在每次查询时根据当前有效 Chunk 构建，适合个人规模资料；
+- BM25 在每次查询时根据当前有效 Chunk 构建，适合单实例知识库；
 - Cross-Encoder 默认开启，首次运行需要下载 `bge-reranker-v2-m3`；如机器资源不足可在 `.env` 中临时关闭；
 - OCR 默认开启，PaddleOCR 不可用时自动回退 RapidOCR；VLM 默认按企业文档模式开启；
-- 不包含用户权限、并发任务、缓存、生产监控和分布式部署。
+- 不包含用户权限、并发任务、生产监控和分布式高可用。
 
 完整技术说明见 [项目技术方案.md](./项目技术方案.md)。

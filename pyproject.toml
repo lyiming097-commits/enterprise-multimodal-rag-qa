@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "personal-multimodal-rag"
 version = "0.2.0"
-description = "面向个人知识库的多模态 RAG 问答系统"
+description = "面向企业知识库的多模态 RAG 问答系统"
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
 dependencies = [
